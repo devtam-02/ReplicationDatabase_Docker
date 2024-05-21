@@ -1,116 +1,69 @@
-Cấu trúc thư mục
-Trước tiên, hãy tạo cấu trúc thư mục sau:
+# MySQL Master-Slave Replication Setup
+
+This guide outlines the steps to initialize and manage a Master-Slave MySQL replication using Docker.
+
+## Initialize the Master-Slave Replication
+
+### Start the Containers
+
+Run the following command to start both the master and the slave MySQL instances:
+
+```bash
+docker-compose up -d
+Configure the Master
+Connect to the Master Database:
+
+bash
+Copy code
+docker exec -it mysql-master mysql -uroot -pmasterpassword
+Create a Replication User and Grant Replication Privileges:
+
+Execute the following SQL commands inside the MySQL shell:
+
+sql
+Copy code
+CREATE USER 'repl_user'@'%' IDENTIFIED WITH mysql_native_password BY 'repl_pass';
+GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
+FLUSH PRIVILEGES;
+SHOW MASTER STATUS;
+Note the File and Position from the output of SHOW MASTER STATUS; for later use.
+
+Configure the Slave
+Connect to the Slave Database:
+
+bash
+Copy code
+docker exec -it mysql-slave mysql -uroot -pslavepassword
+Configure the Master Connection Using GTID for Automatic Position Management:
+
+Execute the following SQL commands inside the MySQL shell:
+
+sql
+Copy code
+CHANGE MASTER TO
+MASTER_HOST='mysql-master',
+MASTER_USER='repl_user',
+MASTER_PASSWORD='repl_pass',
+MASTER_AUTO_POSITION=1;
+Start the Slave:
+
+sql
+Copy code
+START SLAVE;
+Run the following command to check the replication status:
+
+sql
+Copy code
+SHOW SLAVE STATUS\G
+Ensure that both Slave_IO_Running and Slave_SQL_Running fields are Yes to confirm that replication is active and running smoothly.
 
 kotlin
 Copy code
-mysql-replication/
-│
-├── master/
-│   ├── data/
-│   └── my.cnf
-│
-└── slave/
-    ├── data/
-    └── my.cnf
-Tệp cấu hình my.cnf
-master/my.cnf
-ini
-Copy code
-[mysqld]
-server-id=1
-log-bin=mysql-bin
-binlog-do-db=testdb
-slave/my.cnf
-ini
-Copy code
-[mysqld]
-server-id=2
-relay-log=mysql-relay-bin
-Tệp docker-compose.yml
-Tạo tệp docker-compose.yml trong thư mục gốc mysql-replication/:
 
-yaml
-Copy code
-version: '3.8'
+Save this text in a `README.md` file in your project directory where your `docker-compose.yml` file is located. This README will help users or administrators understand how to set up and verify the replication process.
 
-services:
-  mysql-master:
-    image: mysql:latest
-    container_name: mysql-master
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_REPLICATION_USER: replica
-      MYSQL_REPLICATION_PASSWORD: replicapassword
-    volumes:
-      - ./master/data:/var/lib/mysql
-      - ./master/my.cnf:/etc/mysql/my.cnf
-    networks:
-      - mysql-replication-network
 
-  mysql-slave:
-    image: mysql:latest
-    container_name: mysql-slave
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_REPLICATION_USER: replica
-      MYSQL_REPLICATION_PASSWORD: replicapassword
-    volumes:
-      - ./slave/data:/var/lib/mysql
-      - ./slave/my.cnf:/etc/mysql/my.cnf
-    networks:
-      - mysql-replication-network
 
-networks:
-  mysql-replication-network:
-    driver: bridge
-Triển khai MySQL Replication
-Chạy Docker Compose: Chuyển đến thư mục mysql-replication/ và chạy lệnh sau:
-sh
-Copy code
-docker-compose up -d
-Cấu hình Master: Kết nối vào MySQL Master để tạo cơ sở dữ liệu và người dùng replication:
-sh
-Copy code
-docker exec -it mysql-master mysql -uroot -prootpassword
 
-CREATE DATABASE testdb;
-CREATE USER 'replica'@'%' IDENTIFIED BY 'replicapassword';
-GRANT REPLICATION SLAVE ON *.* TO 'replica'@'%';
-FLUSH PRIVILEGES;
-FLUSH TABLES WITH READ LOCK;
-SHOW MASTER STATUS;
-Ghi lại File và Position từ kết quả của lệnh SHOW MASTER STATUS;.
 
-Cấu hình Slave: Kết nối vào MySQL Slave và thiết lập replication:
-sh
-Copy code
-docker exec -it mysql-slave mysql -uroot -prootpassword
 
-CHANGE MASTER TO
-MASTER_HOST='mysql-master',
-MASTER_USER='replica',
-MASTER_PASSWORD='replicapassword',
-MASTER_LOG_FILE='mysql-bin.000001',  -- Thay thế bằng giá trị từ bước 2
-MASTER_LOG_POS= 1234;  -- Thay thế bằng giá trị từ bước 2
-
-START SLAVE;
-Kiểm tra trạng thái replication:
-sh
-Copy code
-docker exec -it mysql-slave mysql -uroot -prootpassword
-SHOW SLAVE STATUS\G;
-Mở khóa bảng trên Master:
-sh
-Copy code
-docker exec -it mysql-master mysql -uroot -prootpassword
-UNLOCK TABLES;
-Kiểm tra hoạt động của Replication
-Trên Master: Tạo bảng hoặc thêm dữ liệu vào cơ sở dữ liệu testdb.
-
-Trên Slave: Kiểm tra xem bảng hoặc dữ liệu đã được replication chính xác chưa:
-
-sh
-Copy code
-docker exec -it mysql-slave mysql -uroot -prootpassword
-USE testdb;
-SHOW TABLES;
