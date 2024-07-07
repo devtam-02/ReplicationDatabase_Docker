@@ -67,3 +67,18 @@ docker-compose up -d
    ```
 
    Ensure that both `Slave_IO_Running` and `Slave_SQL_Running` fields are `Yes` to confirm that replication is active and running smoothly.
+
+Đặt log database
+```sql
+   SET global general_log = 1;
+   SET global general_log_file = 'logfile.log';
+   SET GLOBAL time_zone = '+07:00';
+   
+   ```
+
+Cập nhật timezone
+```bash
+   echo "Asia/Bangkok" | tee /etc/timezone
+   ln -sf /usr/share/zoneinfo/Asia/Bangkok /etc/localtime
+   dpkg-reconfigure --frontend noninteractive tzdata
+```
