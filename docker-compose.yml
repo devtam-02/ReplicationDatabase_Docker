@@ -1,0 +1,62 @@
+version: '3.8'
+services:
+  mysql-master:
+    image: mysql:8.0.37-debian
+    environment:
+      MYSQL_ROOT_PASSWORD: Dev22x22
+      MYSQL_REPLICATION_USER: devtam
+      MYSQL_REPLICATION_PASSWORD: Dev22x22
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+    volumes:
+      - mysql-master-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    networks:
+      - mysql-replication-net
+
+  mysql-slave:
+    image: mysql:8.0.37-debian
+    environment:
+      MYSQL_ROOT_PASSWORD: Dev22x22
+      MYSQL_MASTER_HOST: mysql-master
+      MYSQL_MASTER_USER: devtam
+      MYSQL_MASTER_PASSWORD: Dev22x22
+    depends_on:
+      - mysql-master
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --server-id=2
+      - --skip-slave-start
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+    volumes:
+      - mysql-slave-data:/var/lib/mysql
+    ports:
+      - "3308:3306"
+    networks:
+      - mysql-replication-net
+
+  haproxy:
+    image: haproxy:3.0.0-alpine
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    networks:
+      - mysql-replication-net
+    depends_on:
+      - mysql-master
+      - mysql-slave
+networks:
+  mysql-replication-net:
+    driver: bridge
+
+volumes:
+  mysql-master-data:
+  mysql-slave-data:
